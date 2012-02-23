@@ -45,6 +45,8 @@ redis.on "ready", ->
         response.on "end", ->
             console.log "stream terminated"
 
+numStats = 0
+
 # deal with a tweet
 handleData = (data) ->
     try
@@ -65,6 +67,7 @@ handleData = (data) ->
     redis.rpush "tstats:friends", stats.friends
     redis.rpush "tstats:followers", stats.followers
     redis.rpush "tstats:favourites", stats.favourites
+    numStats += 1
 
     process.stdout.write "."
 
@@ -88,7 +91,7 @@ setInterval ->
                 
                 friends = percentile result, desiredPc
 
-                process.stderr.write "#{favourites}, #{followers}, #{friends}\n"
+                process.stderr.write "#{favourites}, #{followers}, #{friends}, #{numStats}\n"
                 process.stdout.write ".".green.inverse
                 processingStats = false
 , 30000
