@@ -7,4 +7,4 @@ and records a few statistics of interest, namely:
 * followers count
 * friends count
 
-Every 30 seconds it writes out the 95% percentile for each of these stats.
+Every 30 seconds it writes out the 95th percentile for each of these stats.
