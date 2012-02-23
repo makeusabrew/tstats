@@ -74,28 +74,40 @@ handleData = (data) ->
 processStats = ->
     processingStats = true
 
-    # yes, *obviously* doing these as nested async callbacks is filthy and slow
+    numResults = 0
+    favourites = 0
+    followers  = 0
+    friends    = 0
+
+    checkWrite = ->
+        numResults += 1
+        if numResults is 3
+            d = new Date()
+            process.stderr.write "#{favourites}, #{followers}, #{friends}, #{numStats}, \"#{d.toString()}\"\n"
+            process.stdout.write ".".green.inverse
+            processingStats = false
+
     redis.lrange "tstats:favourites", 0, -1, (err, result) ->
         result.sort (a, b) ->
             return parseInt(a) - parseInt(b)
 
         favourites = percentile result, desiredPc
+        checkWrite()
 
-        redis.lrange "tstats:followers", 0, -1, (err, result) ->
-            result.sort (a, b) ->
-                return parseInt(a) - parseInt(b)
-            
-            followers = percentile result, desiredPc
+    redis.lrange "tstats:followers", 0, -1, (err, result) ->
+        result.sort (a, b) ->
+            return parseInt(a) - parseInt(b)
+        
+        followers = percentile result, desiredPc
+        checkWrite()
 
-            redis.lrange "tstats:friends", 0, -1, (err, result) ->
-                result.sort (a, b) ->
-                    return parseInt(a) - parseInt(b)
-                
-                friends = percentile result, desiredPc
+    redis.lrange "tstats:friends", 0, -1, (err, result) ->
+        result.sort (a, b) ->
+            return parseInt(a) - parseInt(b)
+        
+        friends = percentile result, desiredPc
+        checkWrite()
 
-                process.stderr.write "#{favourites}, #{followers}, #{friends}, #{numStats}\n"
-                process.stdout.write ".".green.inverse
-                processingStats = false
 
 percentile = (N, P) ->
     n = parseInt(Math.round(P * N.length + 0.5))
@@ -105,8 +117,9 @@ percentile = (N, P) ->
 
 setInterval ->
     processStats()
-, 10000
+, 30000
 
 process.on "SIGINT", ->
-    console.log "caught sigint"
+    console.log "caught SIGINT"
     redis.quit()
+    process.exit 0
