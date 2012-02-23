@@ -15,13 +15,15 @@ options =
         authorization: "Basic "+ new Buffer(process.argv[2]+":"+process.argv[3]).toString("base64")
 
 processingStats = false
+numStats = 0
 
 redis.on "ready", ->
 
-    redis.ltrim "tstats:friends", 1, 0
-    redis.ltrim "tstats:followers", 1, 0
-    redis.ltrim "tstats:favourites", 1, 0
+    redis.llen "tstats:favourites", (err, result) ->
+        numStats = parseInt(result)
+        connect()
 
+connect = ->
     https.get options, (response) ->
         response.setEncoding "utf8"
 
@@ -44,8 +46,6 @@ redis.on "ready", ->
             
         response.on "end", ->
             console.log "stream terminated"
-
-numStats = 0
 
 # deal with a tweet
 handleData = (data) ->
@@ -71,8 +71,10 @@ handleData = (data) ->
 
     process.stdout.write "."
 
-setInterval ->
+processStats = ->
     processingStats = true
+
+    # yes, *obviously* doing these as nested async callbacks is filthy and slow
     redis.lrange "tstats:favourites", 0, -1, (err, result) ->
         result.sort (a, b) ->
             return parseInt(a) - parseInt(b)
@@ -94,10 +96,17 @@ setInterval ->
                 process.stderr.write "#{favourites}, #{followers}, #{friends}, #{numStats}\n"
                 process.stdout.write ".".green.inverse
                 processingStats = false
-, 30000
 
 percentile = (N, P) ->
     n = parseInt(Math.round(P * N.length + 0.5))
     if n > 1
         return N[n-2]
     return 0
+
+setInterval ->
+    processStats()
+, 10000
+
+process.on "SIGINT", ->
+    console.log "caught sigint"
+    redis.quit()
