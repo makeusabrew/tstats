@@ -1,5 +1,8 @@
+server = process.argv[5] || "127.0.0.1"
+
 https = require "https"
-redis = require("redis").createClient()
+redis = require("redis").createClient(6379, server)
+percentile = require("./shared").percentile
 require "colors"
 
 throw "Please specify a username" unless process.argv[2]
@@ -107,13 +110,6 @@ processStats = ->
         
         friends = percentile result, desiredPc
         checkWrite()
-
-
-percentile = (N, P) ->
-    n = parseInt(Math.round(P * N.length + 0.5))
-    if n > 1
-        return N[n-2]
-    return 0
 
 setInterval ->
     processStats()
